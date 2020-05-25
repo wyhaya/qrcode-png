@@ -1,0 +1,22 @@
+[package]
+name = "qrcode-png"
+version = "0.0.1"
+edition = "2018"
+
+description = "Generate QR code in png format"
+homepage = "https://github.com/wyhaya/qrcode-png"
+repository = "https://github.com/wyhaya/qrcode-png.git"
+authors = ["wyhaya <wyhaya@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+keywords = [
+    "qrcode",
+    "encoder",
+    "image",
+    "png"
+]
+
+[dependencies]
+png = "0.16.3"
+qrcodegen = "1.6.0"
