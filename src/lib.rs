@@ -1,18 +1,43 @@
-//! # Create a QR code
+//! Create a QR code
+//! ```
+//! use qrcode_png::{ColorType, Grayscale, QrCode, QrCodeEcc, RGB, RGBA};
 //!
-//!     use qrcode_png::QrCode;
+//! let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 //!
-//!     let qrcode = QrCode::new(b"Hello Rust !", 10, 6).unwrap();
-//!     let buf = qrcode.encode().unwrap();
-//!     std::fs::write("./qrcode.png", buf);
+//! qrcode.margin(10);
+//! qrcode.zoom(10);
 //!
+//! // -------- Grayscale
+//! let buf = qrcode
+//!     .encode(ColorType::Grayscale(Grayscale::default()))
+//!     .unwrap();
+//! std::fs::write("./qrcode.grayscale.png", buf).unwrap();
+//!
+//! // -------- RGB
+//! let buf = qrcode
+//!     .encode(ColorType::RGB(RGB::new([3, 169, 244], [113, 140, 0])))
+//!     .unwrap();
+//! std::fs::write("./qrcode.rgb.png", buf).unwrap();
+//!
+//! // -------- RGBA
+//! let buf = qrcode
+//!     .encode(ColorType::RGBA(RGBA::new(
+//!         [137, 89, 168, 255],
+//!         [255, 255, 255, 0],
+//!     )))
+//!     .unwrap();
+//! std::fs::write("./qrcode.rgba.png", buf).unwrap();
+//! ```
 
 mod image;
 
 use image::PNG;
+pub use image::{ColorType, Grayscale, RGB, RGBA};
 use png::EncodingError;
-use qrcodegen::{DataTooLong, QrCode as QrCode_, QrCodeEcc};
+pub use qrcodegen::QrCodeEcc;
+use qrcodegen::{DataTooLong, QrCode as QrCode_};
 
+/// Define QR code
 pub struct QrCode {
     // QR Code
     qr: QrCode_,
@@ -24,16 +49,33 @@ pub struct QrCode {
 
 impl QrCode {
     /// Create a QR code
-    pub fn new<T: AsRef<[u8]>>(content: T, zoom: u32, margin: u32) -> Result<Self, DataTooLong> {
-        let qr = QrCode_::encode_binary(content.as_ref(), QrCodeEcc::Medium)?;
+    pub fn new<T: AsRef<[u8]>>(content: T, ecl: QrCodeEcc) -> Result<Self, DataTooLong> {
+        let qr = QrCode_::encode_binary(content.as_ref(), ecl)?;
 
-        Ok(Self { qr, zoom, margin })
+        Ok(Self {
+            qr,
+            zoom: 1,
+            margin: 0,
+        })
+    }
+
+    /// Enlarge the QR code according to the original scale,
+    /// Default value: 1
+    pub fn zoom(&mut self, zoom: u32) {
+        assert_ne!(zoom, 0, "The minimum value is 1");
+        self.zoom = zoom;
+    }
+
+    /// Set the distance between the QR code and the edge of the picture
+    pub fn margin(&mut self, margin: u32) {
+        self.margin = margin;
     }
 
     /// Get png data of QR code
-    pub fn encode(self) -> Result<Vec<u8>, EncodingError> {
+    pub fn encode(&self, color: ColorType) -> Result<Vec<u8>, EncodingError> {
         let size = self.qr.size() as u32 * self.zoom + self.margin * 2;
-        let mut image = PNG::new(size as usize, size as usize);
+
+        let mut image = PNG::new(size as usize, size as usize, color);
 
         for x in 0..self.qr.size() {
             for y in 0..self.qr.size() {
@@ -43,7 +85,7 @@ impl QrCode {
 
                     for x in x_start..x_start + self.zoom {
                         for y in y_start..y_start + self.zoom {
-                            image.set_black(x as usize, y as usize);
+                            image.set_color(x as usize, y as usize);
                         }
                     }
                 }

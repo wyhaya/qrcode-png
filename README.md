@@ -17,12 +17,21 @@ qrcode-png = "*"
 ## Example
  
 ```rust
-use qrcode_png::QrCode;
+use qrcode_png::*;
 
 fn main() {
-    let qrcode = QrCode::new(b"Hello Rust !", 10, 6).unwrap();
-    let buf = qrcode.encode().unwrap();
+    let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
+    
+    qrcode.margin(10);
+    qrcode.zoom(10);
+
+    let buf = qrcode
+        .encode(ColorType::Grayscale(Grayscale::default()))
+        .unwrap();
     std::fs::write("./qrcode.png", buf).unwrap();
 }
 ```
+
+![qrcode](https://user-images.githubusercontent.com/23690145/83348739-c4f88d00-a361-11ea-932e-e722e0bd1b65.png)
+
 
