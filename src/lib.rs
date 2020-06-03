@@ -1,6 +1,6 @@
 //! Create a QR code
 //! ```
-//! use qrcode_png::{ColorType, Grayscale, QrCode, QrCodeEcc, RGB, RGBA};
+//! use qrcode_png::{Grayscale, QrCode, QrCodeEcc, RGB, RGBA};
 //!
 //! let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 //!
@@ -8,31 +8,26 @@
 //! qrcode.zoom(10);
 //!
 //! // -------- Grayscale
-//! let buf = qrcode
-//!     .encode(ColorType::Grayscale(Grayscale::default()))
-//!     .unwrap();
+//! let buf = qrcode.encode(Grayscale::default()).unwrap();
 //! std::fs::write("./qrcode.grayscale.png", buf).unwrap();
 //!
 //! // -------- RGB
 //! let buf = qrcode
-//!     .encode(ColorType::RGB(RGB::new([3, 169, 244], [113, 140, 0])))
+//!     .encode(RGB::new([3, 169, 244], [113, 140, 0]))
 //!     .unwrap();
 //! std::fs::write("./qrcode.rgb.png", buf).unwrap();
 //!
 //! // -------- RGBA
 //! let buf = qrcode
-//!     .encode(ColorType::RGBA(RGBA::new(
-//!         [137, 89, 168, 255],
-//!         [255, 255, 255, 0],
-//!     )))
+//!     .encode(RGBA::new([137, 89, 168, 255], [255, 255, 255, 0]))
 //!     .unwrap();
 //! std::fs::write("./qrcode.rgba.png", buf).unwrap();
 //! ```
 
 mod image;
 
-use image::PNG;
-pub use image::{ColorType, Grayscale, RGB, RGBA};
+use image::{Color, PNG};
+pub use image::{Grayscale, RGB, RGBA};
 use png::EncodingError;
 pub use qrcodegen::QrCodeEcc;
 use qrcodegen::{DataTooLong, QrCode as QrCode_};
@@ -72,7 +67,7 @@ impl QrCode {
     }
 
     /// Get png data of QR code
-    pub fn encode(&self, color: ColorType) -> Result<Vec<u8>, EncodingError> {
+    pub fn encode<C: Color>(&self, color: C) -> Result<Vec<u8>, EncodingError> {
         let size = self.qr.size() as u32 * self.zoom + self.margin * 2;
 
         let mut image = PNG::new(size as usize, size as usize, color);

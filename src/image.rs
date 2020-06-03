@@ -1,4 +1,4 @@
-use png::{ColorType as PngColorType, Encoder, EncodingError};
+use png::{ColorType, Encoder, EncodingError};
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
@@ -25,12 +25,18 @@ impl Write for RcWriter {
     }
 }
 
+// Define the color of the QR code
+pub trait Color {
+    fn get_foreground(&self) -> ColorValue;
+    fn get_background(&self) -> ColorValue;
+}
+
 /// PNG image color type
 #[derive(Debug)]
-pub enum ColorType {
-    Grayscale(Grayscale),
-    RGB(RGB),
-    RGBA(RGBA),
+pub enum ColorValue {
+    Grayscale(u8),
+    RGB(u8, u8, u8),
+    RGBA(u8, u8, u8, u8),
 }
 
 /// Grayscale 0-255
@@ -46,6 +52,16 @@ impl Default for Grayscale {
             foreground: 0,
             background: 255,
         }
+    }
+}
+
+impl Color for Grayscale {
+    fn get_foreground(&self) -> ColorValue {
+        ColorValue::Grayscale(self.foreground)
+    }
+
+    fn get_background(&self) -> ColorValue {
+        ColorValue::Grayscale(self.background)
     }
 }
 
@@ -74,6 +90,18 @@ impl Default for RGB {
     }
 }
 
+impl Color for RGB {
+    fn get_foreground(&self) -> ColorValue {
+        let [r, g, b] = self.foreground;
+        ColorValue::RGB(r, g, b)
+    }
+
+    fn get_background(&self) -> ColorValue {
+        let [r, g, b] = self.background;
+        ColorValue::RGB(r, g, b)
+    }
+}
+
 impl RGB {
     pub fn new(foreground: [u8; 3], background: [u8; 3]) -> Self {
         Self {
@@ -99,6 +127,18 @@ impl Default for RGBA {
     }
 }
 
+impl Color for RGBA {
+    fn get_foreground(&self) -> ColorValue {
+        let [r, g, b, a] = self.foreground;
+        ColorValue::RGBA(r, g, b, a)
+    }
+
+    fn get_background(&self) -> ColorValue {
+        let [r, g, b, a] = self.background;
+        ColorValue::RGBA(r, g, b, a)
+    }
+}
+
 impl RGBA {
     pub fn new(foreground: [u8; 4], background: [u8; 4]) -> Self {
         Self {
@@ -113,54 +153,45 @@ pub struct PNG {
     width: usize,
     height: usize,
     data: Vec<u8>,
-    color: ColorType,
+    foreground: ColorValue,
 }
 
 impl PNG {
     // Create a png picture
-    pub fn new(width: usize, height: usize, color: ColorType) -> Self {
-        let data = match &color {
-            ColorType::Grayscale(color) => {
-                let gray = color.background;
-                vec![gray; width * height]
-            }
-            ColorType::RGB(color) => {
-                let [r, g, b] = color.background;
-                vec![r, g, b].repeat(width * height)
-            }
-            ColorType::RGBA(color) => {
-                let [r, g, b, a] = color.background;
-                vec![r, g, b, a].repeat(width * height)
-            }
+    pub fn new<C: Color>(width: usize, height: usize, color: C) -> Self {
+        let data = match color.get_background() {
+            ColorValue::Grayscale(c) => vec![c; width * height],
+            ColorValue::RGB(r, g, b) => vec![r, g, b].repeat(width * height),
+            ColorValue::RGBA(r, g, b, a) => vec![r, g, b, a].repeat(width * height),
         };
 
         Self {
             width,
             height,
             data,
-            color,
+            foreground: color.get_foreground(),
         }
     }
 
     // Set QR code foreground color
     pub fn set_color(&mut self, x: usize, y: usize) {
-        match &self.color {
-            ColorType::Grayscale(color) => {
+        match &self.foreground {
+            ColorValue::Grayscale(c) => {
                 let index = y * self.width + x;
-                self.data[index] = color.foreground;
+                self.data[index] = *c;
             }
-            ColorType::RGB(color) => {
+            ColorValue::RGB(r, g, b) => {
                 let index = (y * self.width + x) * 3;
-                self.data[index] = color.foreground[0];
-                self.data[index + 1] = color.foreground[1];
-                self.data[index + 2] = color.foreground[2];
+                self.data[index] = *r;
+                self.data[index + 1] = *g;
+                self.data[index + 2] = *b;
             }
-            ColorType::RGBA(color) => {
+            ColorValue::RGBA(r, g, b, a) => {
                 let index = (y * self.width + x) * 4;
-                self.data[index] = color.foreground[0];
-                self.data[index + 1] = color.foreground[1];
-                self.data[index + 2] = color.foreground[2];
-                self.data[index + 3] = color.foreground[3];
+                self.data[index] = *r;
+                self.data[index + 1] = *g;
+                self.data[index + 2] = *b;
+                self.data[index + 3] = *a;
             }
         }
     }
@@ -176,10 +207,10 @@ impl PNG {
         );
 
         // ..
-        match &self.color {
-            ColorType::Grayscale(_) => encoder.set_color(PngColorType::Grayscale),
-            ColorType::RGB(_) => encoder.set_color(PngColorType::RGB),
-            ColorType::RGBA(_) => encoder.set_color(PngColorType::RGBA),
+        match &self.foreground {
+            ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
+            ColorValue::RGB(..) => encoder.set_color(ColorType::RGB),
+            ColorValue::RGBA(..) => encoder.set_color(ColorType::RGBA),
         };
 
         let mut writer = encoder.write_header()?;

@@ -21,13 +21,11 @@ use qrcode_png::*;
 
 fn main() {
     let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
-    
+
     qrcode.margin(10);
     qrcode.zoom(10);
 
-    let buf = qrcode
-        .encode(ColorType::Grayscale(Grayscale::default()))
-        .unwrap();
+    let buf = qrcode.encode(Grayscale::default()).unwrap();
     std::fs::write("./qrcode.png", buf).unwrap();
 }
 ```
