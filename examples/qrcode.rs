@@ -3,8 +3,7 @@ use qrcode_png::{Grayscale, QrCode, QrCodeEcc, RGB, RGBA};
 fn main() {
     let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 
-    qrcode.margin(10);
-    qrcode.zoom(10);
+    qrcode.zoom(10).margin(10);
 
     let buf = qrcode.encode(Grayscale::default()).unwrap();
     std::fs::write("./qrcode.grayscale.png", buf).unwrap();

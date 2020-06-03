@@ -4,8 +4,7 @@
 //!
 //! let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 //!
-//! qrcode.margin(10);
-//! qrcode.zoom(10);
+//! qrcode.zoom(10).margin(10);
 //!
 //! // -------- Grayscale
 //! let buf = qrcode.encode(Grayscale::default()).unwrap();
@@ -56,14 +55,16 @@ impl QrCode {
 
     /// Enlarge the QR code according to the original scale,
     /// Default value: 1
-    pub fn zoom(&mut self, zoom: u32) {
+    pub fn zoom(&mut self, zoom: u32) -> &mut Self {
         assert_ne!(zoom, 0, "The minimum value is 1");
         self.zoom = zoom;
+        self
     }
 
     /// Set the distance between the QR code and the edge of the picture
-    pub fn margin(&mut self, margin: u32) {
+    pub fn margin(&mut self, margin: u32) -> &mut Self {
         self.margin = margin;
+        self
     }
 
     /// Get png data of QR code
