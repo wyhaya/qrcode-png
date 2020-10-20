@@ -1,22 +1,21 @@
 use png::{ColorType, Encoder, EncodingError};
-use std::cell::RefCell;
 use std::io::{self, Write};
-use std::rc::Rc;
 
 // Container when encoding as PNG
-struct RcWriter {
-    data: Rc<RefCell<Vec<u8>>>,
+#[derive(Debug)]
+struct VecWrite {
+    buf: Vec<u8>,
 }
 
-impl RcWriter {
-    fn new(data: Rc<RefCell<Vec<u8>>>) -> Self {
-        Self { data }
+impl VecWrite {
+    fn new() -> Self {
+        Self { buf: Vec::new() }
     }
 }
 
-impl Write for RcWriter {
+impl Write for VecWrite {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.data.borrow_mut().extend_from_slice(buf);
+        self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
 
@@ -25,10 +24,16 @@ impl Write for RcWriter {
     }
 }
 
+impl Into<Vec<u8>> for VecWrite {
+    fn into(self) -> Vec<u8> {
+        self.buf
+    }
+}
+
 // Define the color of the QR code
 pub trait Color {
-    fn get_foreground(&self) -> ColorValue;
-    fn get_background(&self) -> ColorValue;
+    fn foreground(&self) -> ColorValue;
+    fn background(&self) -> ColorValue;
 }
 
 /// PNG image color type
@@ -56,11 +61,11 @@ impl Default for Grayscale {
 }
 
 impl Color for Grayscale {
-    fn get_foreground(&self) -> ColorValue {
+    fn foreground(&self) -> ColorValue {
         ColorValue::Grayscale(self.foreground)
     }
 
-    fn get_background(&self) -> ColorValue {
+    fn background(&self) -> ColorValue {
         ColorValue::Grayscale(self.background)
     }
 }
@@ -91,12 +96,12 @@ impl Default for RGB {
 }
 
 impl Color for RGB {
-    fn get_foreground(&self) -> ColorValue {
+    fn foreground(&self) -> ColorValue {
         let [r, g, b] = self.foreground;
         ColorValue::RGB(r, g, b)
     }
 
-    fn get_background(&self) -> ColorValue {
+    fn background(&self) -> ColorValue {
         let [r, g, b] = self.background;
         ColorValue::RGB(r, g, b)
     }
@@ -128,12 +133,12 @@ impl Default for RGBA {
 }
 
 impl Color for RGBA {
-    fn get_foreground(&self) -> ColorValue {
+    fn foreground(&self) -> ColorValue {
         let [r, g, b, a] = self.foreground;
         ColorValue::RGBA(r, g, b, a)
     }
 
-    fn get_background(&self) -> ColorValue {
+    fn background(&self) -> ColorValue {
         let [r, g, b, a] = self.background;
         ColorValue::RGBA(r, g, b, a)
     }
@@ -159,7 +164,7 @@ pub struct PNG {
 impl PNG {
     // Create a png picture
     pub fn new<C: Color>(width: usize, height: usize, color: C) -> Self {
-        let data = match color.get_background() {
+        let data = match color.background() {
             ColorValue::Grayscale(c) => vec![c; width * height],
             ColorValue::RGB(r, g, b) => vec![r, g, b].repeat(width * height),
             ColorValue::RGBA(r, g, b, a) => vec![r, g, b, a].repeat(width * height),
@@ -169,7 +174,7 @@ impl PNG {
             width,
             height,
             data,
-            foreground: color.get_foreground(),
+            foreground: color.foreground(),
         }
     }
 
@@ -198,26 +203,21 @@ impl PNG {
 
     // Encode pixel information as png
     pub fn encode(&self) -> Result<Vec<u8>, EncodingError> {
-        let data = Rc::new(RefCell::new(Vec::new()));
+        let mut data = VecWrite::new();
 
-        let mut encoder = Encoder::new(
-            RcWriter::new(data.clone()),
-            self.width as u32,
-            self.height as u32,
-        );
+        {
+            let mut encoder = Encoder::new(&mut data, self.width as u32, self.height as u32);
 
-        // ..
-        match &self.foreground {
-            ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
-            ColorValue::RGB(..) => encoder.set_color(ColorType::RGB),
-            ColorValue::RGBA(..) => encoder.set_color(ColorType::RGBA),
-        };
+            match &self.foreground {
+                ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
+                ColorValue::RGB(..) => encoder.set_color(ColorType::RGB),
+                ColorValue::RGBA(..) => encoder.set_color(ColorType::RGBA),
+            };
 
-        let mut writer = encoder.write_header()?;
-        writer.write_image_data(&self.data)?;
+            let mut writer = encoder.write_header()?;
+            writer.write_image_data(&self.data)?;
+        }
 
-        let buf = (*data).borrow().to_vec();
-
-        Ok(buf)
+        Ok(data.into())
     }
 }
