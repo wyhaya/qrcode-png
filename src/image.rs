@@ -1,34 +1,4 @@
 use png::{ColorType, Encoder, EncodingError};
-use std::io::{self, Write};
-
-// Container when encoding as PNG
-#[derive(Debug)]
-struct VecWrite {
-    buf: Vec<u8>,
-}
-
-impl VecWrite {
-    fn new() -> Self {
-        Self { buf: Vec::new() }
-    }
-}
-
-impl Write for VecWrite {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.buf.extend_from_slice(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl Into<Vec<u8>> for VecWrite {
-    fn into(self) -> Vec<u8> {
-        self.buf
-    }
-}
 
 // Define the color of the QR code
 pub trait Color {
@@ -37,15 +7,15 @@ pub trait Color {
 }
 
 /// PNG image color type
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorValue {
     Grayscale(u8),
-    RGB(u8, u8, u8),
-    RGBA(u8, u8, u8, u8),
+    Rgb(u8, u8, u8),
+    Rgba(u8, u8, u8, u8),
 }
 
-/// Grayscale 0-255
-#[derive(Debug)]
+/// Grayscale color 0-255
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Grayscale {
     pub foreground: u8,
     pub background: u8,
@@ -80,13 +50,13 @@ impl Grayscale {
 }
 
 /// RGB color [0-255, 0-255, 0-255]
-#[derive(Debug)]
-pub struct RGB {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rgb {
     pub foreground: [u8; 3],
     pub background: [u8; 3],
 }
 
-impl Default for RGB {
+impl Default for Rgb {
     fn default() -> Self {
         Self {
             foreground: [0, 0, 0],
@@ -95,19 +65,19 @@ impl Default for RGB {
     }
 }
 
-impl Color for RGB {
+impl Color for Rgb {
     fn foreground(&self) -> ColorValue {
         let [r, g, b] = self.foreground;
-        ColorValue::RGB(r, g, b)
+        ColorValue::Rgb(r, g, b)
     }
 
     fn background(&self) -> ColorValue {
         let [r, g, b] = self.background;
-        ColorValue::RGB(r, g, b)
+        ColorValue::Rgb(r, g, b)
     }
 }
 
-impl RGB {
+impl Rgb {
     pub fn new(foreground: [u8; 3], background: [u8; 3]) -> Self {
         Self {
             foreground,
@@ -116,14 +86,14 @@ impl RGB {
     }
 }
 
-/// RGB color [0-255, 0-255, 0-255, 0-255]
-#[derive(Debug)]
-pub struct RGBA {
+/// RGBA color [0-255, 0-255, 0-255, 0-255]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rgba {
     pub foreground: [u8; 4],
     pub background: [u8; 4],
 }
 
-impl Default for RGBA {
+impl Default for Rgba {
     fn default() -> Self {
         Self {
             foreground: [0, 0, 0, 255],
@@ -132,19 +102,19 @@ impl Default for RGBA {
     }
 }
 
-impl Color for RGBA {
+impl Color for Rgba {
     fn foreground(&self) -> ColorValue {
         let [r, g, b, a] = self.foreground;
-        ColorValue::RGBA(r, g, b, a)
+        ColorValue::Rgba(r, g, b, a)
     }
 
     fn background(&self) -> ColorValue {
         let [r, g, b, a] = self.background;
-        ColorValue::RGBA(r, g, b, a)
+        ColorValue::Rgba(r, g, b, a)
     }
 }
 
-impl RGBA {
+impl Rgba {
     pub fn new(foreground: [u8; 4], background: [u8; 4]) -> Self {
         Self {
             foreground,
@@ -153,7 +123,7 @@ impl RGBA {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PNG {
     width: usize,
     height: usize,
@@ -166,8 +136,8 @@ impl PNG {
     pub fn new<C: Color>(width: usize, height: usize, color: C) -> Self {
         let data = match color.background() {
             ColorValue::Grayscale(c) => vec![c; width * height],
-            ColorValue::RGB(r, g, b) => vec![r, g, b].repeat(width * height),
-            ColorValue::RGBA(r, g, b, a) => vec![r, g, b, a].repeat(width * height),
+            ColorValue::Rgb(r, g, b) => vec![r, g, b].repeat(width * height),
+            ColorValue::Rgba(r, g, b, a) => vec![r, g, b, a].repeat(width * height),
         };
 
         Self {
@@ -185,13 +155,13 @@ impl PNG {
                 let index = y * self.width + x;
                 self.data[index] = *c;
             }
-            ColorValue::RGB(r, g, b) => {
+            ColorValue::Rgb(r, g, b) => {
                 let index = (y * self.width + x) * 3;
                 self.data[index] = *r;
                 self.data[index + 1] = *g;
                 self.data[index + 2] = *b;
             }
-            ColorValue::RGBA(r, g, b, a) => {
+            ColorValue::Rgba(r, g, b, a) => {
                 let index = (y * self.width + x) * 4;
                 self.data[index] = *r;
                 self.data[index + 1] = *g;
@@ -203,21 +173,21 @@ impl PNG {
 
     // Encode pixel information as png
     pub fn encode(&self) -> Result<Vec<u8>, EncodingError> {
-        let mut data = VecWrite::new();
+        let mut data = Vec::new();
 
         {
             let mut encoder = Encoder::new(&mut data, self.width as u32, self.height as u32);
 
             match &self.foreground {
                 ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
-                ColorValue::RGB(..) => encoder.set_color(ColorType::RGB),
-                ColorValue::RGBA(..) => encoder.set_color(ColorType::RGBA),
+                ColorValue::Rgb(..) => encoder.set_color(ColorType::RGB),
+                ColorValue::Rgba(..) => encoder.set_color(ColorType::RGBA),
             };
 
             let mut writer = encoder.write_header()?;
             writer.write_image_data(&self.data)?;
         }
 
-        Ok(data.into())
+        Ok(data)
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "qrcode-png"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2018"
 
 description = "Generate QR code in png format"
@@ -18,5 +18,5 @@ keywords = [
 ]
 
 [dependencies]
-png = "0.16.3"
+png = "0.16.8"
 qrcodegen = "1.6.0"
