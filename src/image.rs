@@ -180,8 +180,8 @@ impl PNG {
 
             match &self.foreground {
                 ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
-                ColorValue::Rgb(..) => encoder.set_color(ColorType::RGB),
-                ColorValue::Rgba(..) => encoder.set_color(ColorType::RGBA),
+                ColorValue::Rgb(..) => encoder.set_color(ColorType::Rgb),
+                ColorValue::Rgba(..) => encoder.set_color(ColorType::Rgba),
             };
 
             let mut writer = encoder.write_header()?;
