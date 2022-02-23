@@ -1,9 +1,12 @@
-use qrcode_png::{Grayscale, QrCode, QrCodeEcc, Rgb, Rgba};
+use qrcode_png::{Bitmap, Grayscale, QrCode, QrCodeEcc, Rgb, Rgba};
 
 fn main() {
     let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 
     qrcode.zoom(10).margin(10);
+
+    let buf = qrcode.generate(Bitmap::default()).unwrap();
+    std::fs::write("./qrcode.bitmap.png", buf).unwrap();
 
     let buf = qrcode.generate(Grayscale::default()).unwrap();
     std::fs::write("./qrcode.grayscale.png", buf).unwrap();
