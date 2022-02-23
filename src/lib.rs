@@ -6,6 +6,10 @@
 //!
 //! qrcode.zoom(10).margin(10);
 //!
+//! // -------- Bitmap
+//! let buf = qrcode.generate(Bitmap::default()).unwrap();
+//! std::fs::write("./qrcode.bitmap.png", buf).unwrap();
+//!
 //! // -------- Grayscale
 //! let buf = qrcode.generate(Grayscale::default()).unwrap();
 //! std::fs::write("./qrcode.grayscale.png", buf).unwrap();
