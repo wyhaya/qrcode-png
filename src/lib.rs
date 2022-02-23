@@ -1,6 +1,6 @@
 //! Create a QR code
 //! ```
-//! use qrcode_png::{Grayscale, QrCode, QrCodeEcc, Rgb, Rgba};
+//! use qrcode_png::{Bitmap, Grayscale, QrCode, QrCodeEcc, Rgb, Rgba};
 //!
 //! let mut qrcode = QrCode::new(b"Hello Rust !", QrCodeEcc::Medium).unwrap();
 //!
@@ -26,7 +26,7 @@
 mod image;
 
 use image::PNG;
-pub use image::{Color, Grayscale, Rgb, Rgba};
+pub use image::{Bitmap, Color, Grayscale, Rgb, Rgba};
 use png::EncodingError;
 pub use qrcodegen::QrCodeEcc;
 use qrcodegen::{DataTooLong, QrCode as QrCode_};

@@ -9,9 +9,49 @@ pub trait Color {
 /// PNG image color type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorValue {
+    Bitmap(bool),
     Grayscale(u8),
     Rgb(u8, u8, u8),
     Rgba(u8, u8, u8, u8),
+}
+
+/// Bitmap color false-true: one bit per pixel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Bitmap {
+    pub foreground: bool,
+    pub background: bool,
+}
+
+impl Bitmap {
+    pub fn black_bg() -> Self {
+        Self {
+            foreground: true,
+            background: false,
+        }
+    }
+
+    pub fn white_bg() -> Self {
+        Self {
+            foreground: false,
+            background: true,
+        }
+    }
+}
+
+impl Default for Bitmap {
+    fn default() -> Self {
+        Self::white_bg()
+    }
+}
+
+impl Color for Bitmap {
+    fn foreground(&self) -> ColorValue {
+        ColorValue::Bitmap(self.foreground)
+    }
+
+    fn background(&self) -> ColorValue {
+        ColorValue::Bitmap(self.background)
+    }
 }
 
 /// Grayscale color 0-255
@@ -135,6 +175,10 @@ impl PNG {
     // Create a png picture
     pub fn new<C: Color>(width: usize, height: usize, color: C) -> Self {
         let data = match color.background() {
+            ColorValue::Bitmap(c) => {
+                let bytes_per_row = width / 8 + (width % 8 != 0) as usize;
+                vec![if c { 0xff } else { 0x00 }; height * bytes_per_row]
+            }
             ColorValue::Grayscale(c) => vec![c; width * height],
             ColorValue::Rgb(r, g, b) => vec![r, g, b].repeat(width * height),
             ColorValue::Rgba(r, g, b, a) => vec![r, g, b, a].repeat(width * height),
@@ -151,6 +195,17 @@ impl PNG {
     // Set QR code foreground color
     pub fn set_color(&mut self, x: usize, y: usize) {
         match &self.foreground {
+            ColorValue::Bitmap(c) => {
+                let (x_byte, x_bit) = (x / 8, x % 8);
+                let stride = self.width / 8 + (self.width % 8 != 0) as usize;
+                let mask: u8 = 1 << (7 - x_bit);
+                let byte = &mut self.data[y * stride + x_byte];
+                if *c {
+                    *byte |= mask;
+                } else {
+                    *byte &= !mask;
+                }
+            }
             ColorValue::Grayscale(c) => {
                 let index = y * self.width + x;
                 self.data[index] = *c;
@@ -179,6 +234,10 @@ impl PNG {
             let mut encoder = Encoder::new(&mut data, self.width as u32, self.height as u32);
 
             match &self.foreground {
+                ColorValue::Bitmap(..) => {
+                    encoder.set_color(ColorType::Grayscale);
+                    encoder.set_depth(png::BitDepth::One)
+                }
                 ColorValue::Grayscale(..) => encoder.set_color(ColorType::Grayscale),
                 ColorValue::Rgb(..) => encoder.set_color(ColorType::Rgb),
                 ColorValue::Rgba(..) => encoder.set_color(ColorType::Rgba),
@@ -189,5 +248,40 @@ impl PNG {
         }
 
         Ok(data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bitmap_black_bg() -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::write(
+            "target/bitmap_black.png",
+            PNG::new(30, 40, Bitmap::black_bg()).encode()?,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn bitmap_white_bg() -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::write(
+            "target/bitmap_white.png",
+            PNG::new(30, 40, Bitmap::white_bg()).encode()?,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn bitmap_topleft() -> Result<(), Box<dyn std::error::Error>> {
+        let mut image = PNG::new(30, 40, Bitmap::white_bg());
+        for y in 2..20 {
+            for x in 2..=15 {
+                image.set_color(x, y);
+            }
+        }
+        std::fs::write("target/bitmap_topleft.png", image.encode()?)?;
+        Ok(())
     }
 }
