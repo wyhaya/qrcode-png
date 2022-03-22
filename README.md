@@ -25,7 +25,7 @@ fn main() {
     qrcode.margin(10);
     qrcode.zoom(10);
 
-    let buf = qrcode.generate(Grayscale::default()).unwrap();
+    let buf = qrcode.generate(Color::Grayscale(0, 255)).unwrap();
     std::fs::write("./qrcode.png", buf).unwrap();
 }
 ```
